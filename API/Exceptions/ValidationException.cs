@@ -8,4 +8,9 @@ public class ValidationException : Exception
     {
         Errors = errors;
     }
+
+    public ValidationException(string error) : base("Validation failed")
+    {
+        Errors = new List<string> { error };
+    }
 }
