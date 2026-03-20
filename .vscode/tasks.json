@@ -56,3 +56,13 @@
 //       │
 //       └── endsPattern: "Now listening on"    → VS Code knows app is READY
 //                                                 └── triggers debugger to attach
+
+// launch.json       →  starts preLaunchTask
+// tasks.json        →  runs dotnet watch
+// problemMatcher    →  listens to terminal output
+// endsPattern       →  "Now listening on" found
+// launch.json       →  notified that task is ready
+// debugger          →  attaches to "API" process
+
+// problemMatcher is a VS Code feature that scans terminal output and interprets it — it was originally designed to catch build errors and display them in the Problems panel.
+// preLaunchTask is a property in launch.json that tells VS Code to run a task before starting the debugger.

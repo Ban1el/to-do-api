@@ -37,7 +37,13 @@ namespace API.Controllers
         {
             int userId = User.GetUserId();
             var result = await _userService.CreateAsync(userId, dto);
-            return Ok(result);
+
+            if (!result.Success)
+            {
+                return BadRequest(result.Message);
+            }
+
+            return Ok(result.Data);
         }
 
         [HttpPut("{id}")]
@@ -45,15 +51,24 @@ namespace API.Controllers
         {
             int userId = User.GetUserId();
             var result = await _userService.UpdateAsync(userId, id, dto);
-            return Ok(result);
+
+            if (!result.Success)
+            {
+                return BadRequest(result.Message);
+            }
+            return Ok(result.Data);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             int userId = User.GetUserId();
-            await _userService.DeleteAsync(userId, id);
-            return Ok();
+            var result = await _userService.DeleteAsync(userId, id);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            return NoContent();
         }
     }
 }

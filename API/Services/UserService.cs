@@ -1,4 +1,5 @@
 using System;
+using API.Common;
 using API.Data;
 using API.DTOs;
 using API.DTOs.User;
@@ -54,17 +55,29 @@ public class UserService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<UserDetailDto> CreateAsync(int userId, UserCreateDto dto)
+    public async Task<ServiceResult<UserDetailDto>> CreateAsync(int userId, UserCreateDto dto)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
         try
         {
+            var result = new ServiceResult<UserDetailDto>();
+
+            bool usernameExists = await _context.Users
+                .AnyAsync(u => u.Username == dto.Username);
+
+            if (usernameExists) return ServiceResult<UserDetailDto>.Fail("Username already exists");
+
+            bool emailExists = await _context.Users
+               .AnyAsync(u => u.Email == dto.Email);
+
+            if (emailExists) return ServiceResult<UserDetailDto>.Fail("Email already exists");
+
             CryptoUtils _cryptoUtils = new CryptoUtils();
             PasswordUtils _passwordUtils = new PasswordUtils();
             var (isStrong, message) = _passwordUtils.CheckStrength(dto.password);
 
-            if (!isStrong) throw new ValidationException(message);
+            if (!isStrong) return ServiceResult<UserDetailDto>.Fail(message);
 
             string passwordSalt = _cryptoUtils.GenerateSalt();
             var user = new User
@@ -81,14 +94,18 @@ public class UserService
 
             await transaction.CommitAsync();
 
-            return new UserDetailDto
+            return new ServiceResult<UserDetailDto>
             {
-                Id = user.Id,
-                Username = user.Username,
-                Email = user.Email,
-                CreatedBy = userId,
-                DateCreated = user.DateCreated,
-                IsActive = user.IsActive
+                Success = true,
+                Data = new UserDetailDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    CreatedBy = userId,
+                    DateCreated = user.DateCreated,
+                    IsActive = user.IsActive
+                }
             };
         }
         catch (Exception)
@@ -98,37 +115,89 @@ public class UserService
         }
     }
 
-    public async Task<UserDetailDto> UpdateAsync(int userId, int id, UserUpdateDto dto)
+    public async Task<ServiceResult<UserDetailDto>> UpdateAsync(int userId, int id, UserUpdateDto dto)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
         try
         {
+            bool detailsChanged = false;
+            var result = new ServiceResult<UserDetailDto>();
             var user = await _context.Users.FindAsync(id);
+            CryptoUtils _cryptoUtils = new CryptoUtils();
+            PasswordUtils _passwordUtils = new PasswordUtils();
 
-            if (user == null)
-                throw new NotFoundException("Item not found");
+            if (user == null) return ServiceResult<UserDetailDto>.Fail("Item not found.");
+            #region VALIDATION
 
-            user.Username = dto.Username;
-            user.Email = dto.Email;
-            user.IsActive = dto.IsActive;
-            user.ModifiedBy = userId;
-            user.DateModified = DateTime.UtcNow;
+            #region Username
+            if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.Username) detailsChanged = true;
+            else if (string.IsNullOrWhiteSpace(dto.Username)) dto.Username = user.Username;
+            #endregion
 
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            #region Email
+            if (!string.IsNullOrWhiteSpace(dto.Email) && dto.Email != user.Email) detailsChanged = true;
+            else if (string.IsNullOrWhiteSpace(dto.Email)) dto.Email = user.Email;
+            #endregion
 
-            return new UserDetailDto
+            #region Password
+            string newPasswordHashed = _cryptoUtils.HashPassword(dto.NewPassword, user.PasswordSalt);
+
+            if (!string.IsNullOrWhiteSpace(dto.NewPassword) && newPasswordHashed != user.Password)
             {
-                Id = user.Id,
-                Username = user.Username,
-                Email = user.Email,
-                ModifiedBy = userId,
-                DateModified = user.DateModified,
-                CreatedBy = user.CreatedBy,
-                DateCreated = user.DateCreated,
-                IsActive = user.IsActive
+                if (string.IsNullOrWhiteSpace(dto.CurrentPassword)) return ServiceResult<UserDetailDto>.Fail("Enter current password to update password.");
+
+                string currentPasswordHashed = _cryptoUtils.HashPassword(dto.CurrentPassword, user.PasswordSalt);
+
+                if (currentPasswordHashed != user.Password) return ServiceResult<UserDetailDto>.Fail("Invalid current password.");
+
+                var (isStrong, message) = _passwordUtils.CheckStrength(dto.NewPassword);
+                if (!isStrong) return ServiceResult<UserDetailDto>.Fail(message);
+
+                detailsChanged = true;
+            }
+            else if (string.IsNullOrWhiteSpace(dto.NewPassword)) dto.NewPassword = user.Password;
+            #endregion
+
+            #region IsActive
+            if (dto.IsActive != null && dto.IsActive != user.IsActive) detailsChanged = true;
+            else if (dto.IsActive == null) dto.IsActive = user.IsActive;
+            #endregion
+
+            #endregion
+
+            if (detailsChanged)
+            {
+                user.Username = dto.Username;
+                user.Password = newPasswordHashed;
+                user.Email = dto.Email;
+                user.IsActive = dto.IsActive.Value;
+                user.ModifiedBy = userId;
+                user.DateModified = DateTime.UtcNow;
+
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            else
+            {
+                return ServiceResult<UserDetailDto>.Ok("Nothing to update.");
+            }
+
+            return new ServiceResult<UserDetailDto>
+            {
+                Success = true,
+                Data = new UserDetailDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    ModifiedBy = userId,
+                    DateModified = user.DateModified,
+                    CreatedBy = user.CreatedBy,
+                    DateCreated = user.DateCreated,
+                    IsActive = user.IsActive
+                }
             };
         }
         catch (Exception)
@@ -138,9 +207,9 @@ public class UserService
         }
     }
 
-    public async Task DeleteAsync(int userId, int id)
+    public async Task<ServiceResult> DeleteAsync(int userId, int id)
     {
-        if (userId == id) throw new ValidationException("Invalid user");
+        if (userId == id) return ServiceResult.Fail("Invalid user.");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -148,12 +217,13 @@ public class UserService
         {
             var user = await _context.Users.FindAsync(id);
 
-            if (user == null)
-                throw new NotFoundException("Item not found");
+            if (user == null) return ServiceResult.Fail("Item not found.");
 
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            return ServiceResult.Ok();
         }
         catch (Exception)
         {

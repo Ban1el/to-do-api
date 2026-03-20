@@ -19,7 +19,7 @@ public class TokenService
         _config = config;
     }
 
-    public string CreateToken(UserDto user, int expireMinues = 8)
+    public string CreateToken(UserDto user, int expireMinues = 480)
     {
         var tokenKey = _config["JWT:Key"] ?? throw new Exception("Cannot Access! Token Key is not found.");
 
