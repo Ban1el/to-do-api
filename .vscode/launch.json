@@ -1,19 +1,35 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
-      "name": ".NET Core Attach",
+      "name": "Debug API",
+      // Just the display name shown in the Run & Debug dropdown
+
       "type": "coreclr",
-      "request": "attach"
-    },
-    {
-      "name": "C#: <project-name> Debug",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/API/API.csproj"
+      // Tells VS Code this is a .NET Core app debugger
+
+      "request": "attach",
+      // Instead of LAUNCHING a new process, it ATTACHES to an already running one
+      // (dotnet watch already started the process via preLaunchTask)
+
+      "processName": "API",
+      // The name of the process to attach to
+      // Looks for a running process called "API" (your API.exe)
+
+      "preLaunchTask": "dotnet watch"
+      // Before attaching, run the task labeled "dotnet watch" in tasks.json first
+      // This starts the app, then once it's ready the debugger attaches
     }
   ]
 }
+
+// The flow:
+// F5 pressed
+//  │
+//  ├── 1. preLaunchTask → runs "dotnet watch" from tasks.json
+//  │         │
+//  │         └── waits for "Now listening on" (endsPattern in tasks.json)
+//  │                    app is ready ✅
+//  │
+//  └── 2. request: "attach" → finds process named "API"
+//               debugger attaches ✅

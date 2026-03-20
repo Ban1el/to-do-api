@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dotnet watch",
+      // The name of this task — must match "preLaunchTask" in launch.json
+
+      "command": "dotnet",
+      // The command to run in the terminal
+
+      "type": "process",
+      // Runs as a direct process (not shell) — more reliable
+
+      "args": ["watch", "--project", "${workspaceFolder}/API/API.csproj"],
+      // Arguments passed to "dotnet"
+      // Equivalent to running: dotnet watch --project /your/path/API/API.csproj
+
+      "isBackground": true,
+      // Tells VS Code this task runs forever (doesn't exit)
+      // Without this, VS Code waits for the task to finish before attaching
+      // dotnet watch never exits so this must be true
+
+      "problemMatcher": {
+        "owner": "dotnet",
+        // Just an identifier for who owns this matcher
+
+        "pattern": {
+          "regexp": "^\\s*ERROR\\s*$"
+          // Regex pattern to detect errors in the output
+        },
+
+        "background": {
+          "activeOnStart": true,
+          // Immediately marks the task as active when it starts
+
+          "beginsPattern": "^dotnet watch",
+          // Watches terminal output for this text
+          // When seen → task has STARTED
+
+          "endsPattern": "Now listening on|Application started"
+          // Watches terminal output for this text
+          // When seen → app is READY → debugger can now attach
+        }
+      }
+    }
+  ]
+}
+
+// Why `problemMatcher` is required for background tasks:
+
+// dotnet watch starts
+//       │
+//       ├── beginsPattern: "^dotnet watch"     → VS Code knows task STARTED
+//       │
+//       │   ... app is compiling ...
+//       │
+//       └── endsPattern: "Now listening on"    → VS Code knows app is READY
+//                                                 └── triggers debugger to attach

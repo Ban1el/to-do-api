@@ -1,4 +1,3 @@
-// Exceptions/NotFoundException.cs
 namespace API.Exceptions;
 
 public class NotFoundException : Exception

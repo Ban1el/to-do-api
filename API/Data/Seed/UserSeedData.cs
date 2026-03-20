@@ -20,7 +20,7 @@ public class UserSeedData
                     Email = "test@test.com",
                     Password = _crypto.HashPassword("admin@123", passwordSalt),
                     PasswordSalt = passwordSalt,
-                    DateCreated = DateTime.Now,
+                    DateCreated = DateTime.UtcNow,
                     CreatedBy = 0,
                     ModifiedBy = 0,
                     IsActive = true

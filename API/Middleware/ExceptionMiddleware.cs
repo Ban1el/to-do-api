@@ -22,29 +22,55 @@ public class ExceptionMiddleware
         }
         catch (NotFoundException ex)
         {
-            await HandleExceptionAsync(context, ex, HttpStatusCode.NotFound);
+            await HandleNotFoundExceptionAsync(context, ex);
         }
         catch (ValidationException ex)
         {
-            await HandleExceptionAsync(context, ex, HttpStatusCode.BadRequest);
+            await HandleValidationExceptionAsync(context, ex);
+        }
+        catch (UnauthorizedException ex)
+        {
+            await HandleUnauthorizedExceptionAsync(context, ex);
         }
         catch (Exception ex)
         {
-            await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError);
+            await HandleExceptionAsync(context, ex);
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception ex, HttpStatusCode statusCode)
+    private static Task WriteResponseAsync(HttpContext context, HttpStatusCode statusCode, object response)
     {
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)statusCode;
+        return context.Response.WriteAsJsonAsync(response);
+    }
 
-        var response = new
+    private static Task HandleNotFoundExceptionAsync(HttpContext context, NotFoundException ex) =>
+        WriteResponseAsync(context, HttpStatusCode.NotFound, new
         {
             Success = false,
             Error = ex.Message
-        };
+        });
 
-        await context.Response.WriteAsJsonAsync(response);
-    }
+    private static Task HandleValidationExceptionAsync(HttpContext context, ValidationException ex) =>
+        WriteResponseAsync(context, HttpStatusCode.BadRequest, new
+        {
+            Success = false,
+            Error = ex.Message,
+            ex.Errors
+        });
+
+    private static Task HandleUnauthorizedExceptionAsync(HttpContext context, UnauthorizedException ex) =>
+        WriteResponseAsync(context, HttpStatusCode.Unauthorized, new
+        {
+            Success = false,
+            Error = ex.Message
+        });
+
+    private static Task HandleExceptionAsync(HttpContext context, Exception ex) =>
+        WriteResponseAsync(context, HttpStatusCode.InternalServerError, new
+        {
+            Success = false,
+            Error = "An unexpected error occurred."
+        });
 }

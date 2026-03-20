@@ -9,6 +9,7 @@ public static class ApplicationServicesExtensions
     {
         services.AddControllers();
         services.AddScoped<ToDoService>();
+        services.AddScoped<UserService>();
         services.AddScoped<UserAuthService>();
         services.AddScoped<TokenService>();
         services.AddDbContext<AppDbContext>(options =>
@@ -16,7 +17,7 @@ public static class ApplicationServicesExtensions
         string base64Key = config["Encryption:Key"]
              ?? throw new InvalidOperationException("Encryption key not found in configuration.");
         CryptoExtensions.SetKey(base64Key);
-
+        services.AddIdentityServices(config);
         return services;
     }
 }
