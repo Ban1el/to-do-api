@@ -78,7 +78,7 @@ public class ToDoService
                 IsActive = todo.IsActive
             };
         }
-        catch (Exception)
+        catch
         {
             await transaction.RollbackAsync();
             throw;
@@ -147,7 +147,7 @@ public class ToDoService
                 }
             };
         }
-        catch (Exception)
+        catch
         {
             await transaction.RollbackAsync();
             throw;
@@ -172,7 +172,7 @@ public class ToDoService
 
             return ServiceResult.Ok();
         }
-        catch (Exception)
+        catch
         {
             await transaction.RollbackAsync();
             throw;

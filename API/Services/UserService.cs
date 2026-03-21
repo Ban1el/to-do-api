@@ -108,7 +108,7 @@ public class UserService
                 }
             };
         }
-        catch (Exception)
+        catch
         {
             await transaction.RollbackAsync();
             throw;
@@ -205,7 +205,7 @@ public class UserService
                 }
             };
         }
-        catch (Exception)
+        catch
         {
             await transaction.RollbackAsync();
             throw;
@@ -230,7 +230,7 @@ public class UserService
 
             return ServiceResult.Ok();
         }
-        catch (Exception)
+        catch
         {
             await transaction.RollbackAsync();
             throw;

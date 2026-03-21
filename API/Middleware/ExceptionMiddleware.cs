@@ -1,8 +1,13 @@
 using System.Net;
 using System.Text.Json;
+using API.DTOs.ErrorLog;
+using API.Extensions;
 using API.Exceptions;
 using API.Helpers;
+using API.Models;
+using API.Services;
 using Microsoft.AspNetCore.Diagnostics;
+using API.Errors;
 
 namespace API.Middleware;
 
@@ -10,10 +15,14 @@ public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly HashSet<string> _sensitiveFields;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IHostEnvironment _env;
 
-    public ExceptionMiddleware(RequestDelegate next, IConfiguration configuration)
+    public ExceptionMiddleware(RequestDelegate next, IConfiguration configuration, IServiceScopeFactory scopeFactory, IHostEnvironment env)
     {
         _next = next;
+        _env = env;
+        _scopeFactory = scopeFactory;
         _sensitiveFields = new HashSet<string>(
           configuration.GetSection("ErrorLogging:SensitiveFields").Get<string[]>() ?? [],
           StringComparer.OrdinalIgnoreCase);
@@ -75,11 +84,49 @@ public class ExceptionMiddleware
             Body = parsedBody
         };
 
-        await LogHelper.LogErrorAsync(ex, data);
-        await WriteResponseAsync(context, HttpStatusCode.InternalServerError, new
+        try
         {
-            Success = false,
-            Error = "An unexpected error occurred."
-        });
+            using var scope = _scopeFactory.CreateScope();
+            var errorLogService = scope.ServiceProvider.GetRequiredService<ErrorLogService>();
+
+            int? userId = null;
+            try { userId = context.User?.GetUserId(); } catch { }
+
+            await errorLogService.CreateAsync(new ErrorLogCreateDto
+            {
+                UserId = userId ?? 0,
+                Description = JsonSerializer.Serialize(new
+                {
+                    ex.Message,
+                    ex.Source,
+                    Type = ex.GetType().Name,
+                    InnerException = ex.InnerException?.Message ?? "N/A",
+                    Request = data
+                }),
+                ClientIpAddress = context.Connection.RemoteIpAddress?.ToString() ?? "N/A",
+                DateCreated = DateTime.UtcNow
+            });
+        }
+        catch (Exception dbException)
+        {
+            await LogHelper.LogErrorAsync(ex, data);
+            await LogHelper.LogErrorAsync(dbException);
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+
+        var reponse = _env.IsDevelopment()
+              ? new ApiException(context.Response.StatusCode, ex.Message, ex.StackTrace)
+              : new ApiException(context.Response.StatusCode, "Internal Server Error", "An error occured");
+
+        var json = JsonSerializer.Serialize(reponse, options);
+
+        await context.Response.WriteAsync(json);
     }
 }

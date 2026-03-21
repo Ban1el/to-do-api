@@ -15,7 +15,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 var app = builder.Build();
-app.UseMiddleware<ExceptionMiddleware>();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -23,6 +22,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseAuthorization();
 
