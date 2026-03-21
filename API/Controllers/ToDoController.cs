@@ -1,10 +1,13 @@
 using API.DTOs;
+using API.Extensions;
 using API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
 {
+    [Authorize]
     [Route("api/to-do")]
     [ApiController]
     public class ToDoController : ControllerBase
@@ -32,15 +35,39 @@ namespace API.Controllers
         [HttpPost]
         public async Task<ActionResult<ToDoDto>> Create([FromBody] ToDoCreateDto dto)
         {
-            var result = await _toDoService.CreateAsync(dto);
+            int userId = User.GetUserId();
+            var result = await _toDoService.CreateAsync(userId, dto);
             return Ok(result);
         }
 
         [HttpPut("{id}")]
         public async Task<ActionResult<ToDoDto>> Update(int id, [FromBody] ToDoUpdateDto dto)
         {
-            var result = await _toDoService.UpdateAsync(id, dto);
-            return Ok(result);
+            int userId = User.GetUserId();
+            var result = await _toDoService.UpdateAsync(userId, id, dto);
+
+            if (!result.Success)
+            {
+                return BadRequest(result.Message);
+            }
+            else if (result.Data == null)
+            {
+                return NoContent();
+            }
+
+            return Ok(result.Data);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            int userId = User.GetUserId();
+            var result = await _toDoService.DeleteAsync(userId, id);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            return Ok(result.Message);
         }
     }
 }

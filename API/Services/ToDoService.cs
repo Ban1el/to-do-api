@@ -1,4 +1,5 @@
 using System;
+using API.Common;
 using API.Data;
 using API.DTOs;
 using API.Exceptions;
@@ -48,7 +49,7 @@ public class ToDoService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<ToDoDto> CreateAsync(ToDoCreateDto dto)
+    public async Task<ToDoDto> CreateAsync(int userId, ToDoCreateDto dto)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -59,6 +60,7 @@ public class ToDoService
                 Title = dto.Title,
                 Description = dto.Description,
                 DateCreated = DateTime.UtcNow,
+                CreatedBy = userId,
                 IsActive = true
             };
 
@@ -83,35 +85,66 @@ public class ToDoService
         }
     }
 
-    public async Task<ToDoDto> UpdateAsync(int id, ToDoUpdateDto dto)
+    public async Task<ServiceResult<ToDoDto>> UpdateAsync(int userId, int id, ToDoUpdateDto dto)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
         try
         {
+            var result = new ServiceResult<ToDoDto>();
             var todo = await _context.ToDos.FindAsync(id);
 
-            if (todo == null)
-                throw new NotFoundException("Item not found");
+            if (todo == null) return ServiceResult<ToDoDto>.Fail("Item not found");
 
-            // update the fields
-            todo.Title = dto.Title;
-            todo.Description = dto.Description;
-            todo.IsActive = dto.IsActive;
-            todo.DateModified = DateTime.UtcNow;
+            bool detailsChanged = false;
+            #region VALIDATION
 
-            _context.ToDos.Update(todo);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            #region Title
+            if (!string.IsNullOrWhiteSpace(dto.Title) && dto.Title != todo.Title) detailsChanged = true;
+            else if (string.IsNullOrWhiteSpace(dto.Title)) dto.Title = todo.Title;
+            #endregion
 
-            return new ToDoDto
+            #region Description
+            if (!string.IsNullOrWhiteSpace(dto.Description) && dto.Description != todo.Description) detailsChanged = true;
+            else if (string.IsNullOrWhiteSpace(dto.Description)) dto.Description = todo.Description;
+            #endregion
+
+            #region IsActive
+            if (dto.IsActive != null && dto.IsActive != todo.IsActive) detailsChanged = true;
+            else if (dto.IsActive == null) dto.IsActive = todo.IsActive;
+            #endregion
+
+            #endregion
+
+            if (detailsChanged)
             {
-                Id = todo.Id,
-                Title = todo.Title,
-                Description = todo.Description,
-                DateCreated = todo.DateCreated,
-                DateModified = todo.DateModified,
-                IsActive = todo.IsActive
+                todo.Title = dto.Title;
+                todo.Description = dto.Description;
+                todo.IsActive = dto.IsActive.Value;
+                todo.DateModified = DateTime.UtcNow;
+                todo.ModifiedBy = userId;
+
+                _context.ToDos.Update(todo);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            else
+            {
+                return ServiceResult<ToDoDto>.Ok("Nothing to update.");
+            }
+
+            return new ServiceResult<ToDoDto>
+            {
+                Success = true,
+                Data = new ToDoDto
+                {
+                    Id = todo.Id,
+                    Title = todo.Title,
+                    Description = todo.Description,
+                    DateCreated = todo.DateCreated,
+                    DateModified = todo.DateModified,
+                    IsActive = todo.IsActive
+                }
             };
         }
         catch (Exception)
@@ -121,20 +154,23 @@ public class ToDoService
         }
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<ServiceResult> DeleteAsync(int userId, int id)
     {
+        if (userId == id) return ServiceResult.Fail("Invalid user.");
+
         using var transaction = await _context.Database.BeginTransactionAsync();
 
         try
         {
             var todo = await _context.ToDos.FindAsync(id);
 
-            if (todo == null)
-                throw new NotFoundException("Item not found");
+            if (todo == null) return ServiceResult.Fail("Item not found.");
 
             _context.ToDos.Remove(todo);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            return ServiceResult.Ok();
         }
         catch (Exception)
         {
