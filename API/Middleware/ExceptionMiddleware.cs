@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using API.Exceptions;
+using API.Helpers;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace API.Middleware;
@@ -8,29 +9,23 @@ namespace API.Middleware;
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly HashSet<string> _sensitiveFields;
 
-    public ExceptionMiddleware(RequestDelegate next)
+    public ExceptionMiddleware(RequestDelegate next, IConfiguration configuration)
     {
         _next = next;
+        _sensitiveFields = new HashSet<string>(
+          configuration.GetSection("ErrorLogging:SensitiveFields").Get<string[]>() ?? [],
+          StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
+        context.Request.EnableBuffering();
+
         try
         {
             await _next(context);
-        }
-        catch (NotFoundException ex)
-        {
-            await HandleNotFoundExceptionAsync(context, ex);
-        }
-        catch (ValidationException ex)
-        {
-            await HandleValidationExceptionAsync(context, ex);
-        }
-        catch (UnauthorizedException ex)
-        {
-            await HandleUnauthorizedExceptionAsync(context, ex);
         }
         catch (Exception ex)
         {
@@ -45,32 +40,46 @@ public class ExceptionMiddleware
         return context.Response.WriteAsJsonAsync(response);
     }
 
-    private static Task HandleNotFoundExceptionAsync(HttpContext context, NotFoundException ex) =>
-        WriteResponseAsync(context, HttpStatusCode.NotFound, new
-        {
-            Success = false,
-            Error = ex.Message
-        });
+    private async Task HandleExceptionAsync(HttpContext context, Exception ex)
+    {
+        context.Request.Body.Position = 0;
+        var requestBody = await new StreamReader(context.Request.Body).ReadToEndAsync();
 
-    private static Task HandleValidationExceptionAsync(HttpContext context, ValidationException ex) =>
-        WriteResponseAsync(context, HttpStatusCode.BadRequest, new
+        object? parsedBody = null;
+        if (!string.IsNullOrEmpty(requestBody))
         {
-            Success = false,
-            Error = ex.Message,
-            ex.Errors
-        });
+            try
+            {
+                var rawJson = JsonSerializer.Deserialize<Dictionary<string, object>>(requestBody);
+                if (rawJson != null)
+                {
+                    foreach (var key in rawJson.Keys.ToList())
+                    {
+                        if (_sensitiveFields.Contains(key))
+                            rawJson[key] = "***REDACTED***";
+                    }
+                    parsedBody = rawJson;
+                }
+            }
+            catch
+            {
+                parsedBody = requestBody;
+            }
+        }
 
-    private static Task HandleUnauthorizedExceptionAsync(HttpContext context, UnauthorizedException ex) =>
-        WriteResponseAsync(context, HttpStatusCode.Unauthorized, new
+        var data = new
         {
-            Success = false,
-            Error = ex.Message
-        });
+            Method = context.Request.Method,
+            Path = context.Request.Path.ToString(),
+            QueryString = context.Request.QueryString.ToString(),
+            Body = parsedBody
+        };
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception ex) =>
-        WriteResponseAsync(context, HttpStatusCode.InternalServerError, new
+        await LogHelper.LogErrorAsync(ex, data);
+        await WriteResponseAsync(context, HttpStatusCode.InternalServerError, new
         {
             Success = false,
             Error = "An unexpected error occurred."
         });
+    }
 }
