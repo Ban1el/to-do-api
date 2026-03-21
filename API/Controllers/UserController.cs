@@ -56,6 +56,11 @@ namespace API.Controllers
             {
                 return BadRequest(result.Message);
             }
+            else if (result.Data == null)
+            {
+                return NoContent();
+            }
+
             return Ok(result.Data);
         }
 
@@ -68,7 +73,7 @@ namespace API.Controllers
             if (!result.Success)
                 return BadRequest(result.Message);
 
-            return NoContent();
+            return Ok(result.Message);
         }
     }
 }

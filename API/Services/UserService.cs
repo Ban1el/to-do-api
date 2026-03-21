@@ -160,7 +160,12 @@ public class UserService
             #endregion
 
             #region IsActive
-            if (dto.IsActive != null && dto.IsActive != user.IsActive) detailsChanged = true;
+            if (dto.IsActive != null && dto.IsActive != user.IsActive)
+            {
+                if (userId == user.Id) return ServiceResult<UserDetailDto>.Fail("You cannot change your own active status while logged in.");
+
+                detailsChanged = true;
+            }
             else if (dto.IsActive == null) dto.IsActive = user.IsActive;
             #endregion
 
