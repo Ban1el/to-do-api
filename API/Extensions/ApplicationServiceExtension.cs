@@ -17,6 +17,7 @@ public static class ApplicationServicesExtensions
         services.AddScoped<UserAuthService>();
         services.AddScoped<TokenService>();
         services.AddScoped<ErrorLogService>();
+        services.AddScoped<AuditTrailService>();
         services.AddDbContext<AppDbContext>(options =>
                options.UseSqlServer(config.GetConnectionString("PracticeDb")));
         string base64Key = config["Encryption:Key"]

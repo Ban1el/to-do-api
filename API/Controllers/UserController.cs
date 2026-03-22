@@ -1,4 +1,6 @@
+using API.Constants;
 using API.DTOs.User;
+using API.Enums;
 using API.Extensions;
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +23,9 @@ namespace API.Controllers
         [HttpGet]
         public async Task<ActionResult<UserDetailDto>> GetAll()
         {
+            HttpContext.Items[AuditTrailConstants.AuditModule] = ModuleConstants.User;
+            HttpContext.Items[AuditTrailConstants.AuditAction] = ActionConstants.Read;
+
             var result = await _userService.GetAllAsync();
             return Ok(result);
         }
@@ -28,6 +33,9 @@ namespace API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<UserDetailDto>> GetById(int id)
         {
+            HttpContext.Items[AuditTrailConstants.AuditModule] = ModuleConstants.User;
+            HttpContext.Items[AuditTrailConstants.AuditAction] = ActionConstants.Read;
+
             var result = await _userService.GetByIdAsync(id);
             return Ok(result);
         }
@@ -35,6 +43,9 @@ namespace API.Controllers
         [HttpPost]
         public async Task<ActionResult<UserDetailDto>> Create([FromBody] UserCreateDto dto)
         {
+            HttpContext.Items[AuditTrailConstants.AuditModule] = ModuleConstants.User;
+            HttpContext.Items[AuditTrailConstants.AuditAction] = ActionConstants.Create;
+
             int userId = User.GetUserId();
             var result = await _userService.CreateAsync(userId, dto);
 

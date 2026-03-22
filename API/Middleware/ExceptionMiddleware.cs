@@ -42,13 +42,6 @@ public class ExceptionMiddleware
         }
     }
 
-    private static Task WriteResponseAsync(HttpContext context, HttpStatusCode statusCode, object response)
-    {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)statusCode;
-        return context.Response.WriteAsJsonAsync(response);
-    }
-
     private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
         context.Request.Body.Position = 0;
