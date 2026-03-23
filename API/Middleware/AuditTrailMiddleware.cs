@@ -81,6 +81,8 @@ public class AuditTrailMiddleware
             DateCreated = DateTime.UtcNow
         });
 
+        var refId = context.Items[AuditTrailConstants.ReferenceId]?.ToString();
+
         // ======== RESPONSE LOG ========
         await auditService.CreateAsync(new AuditTrailCreateDto
         {
@@ -92,7 +94,8 @@ public class AuditTrailMiddleware
             Data = parsedResponse != null ? JsonSerializer.Serialize(parsedResponse) : string.Empty,
             ClientIpAddress = context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
             IsRequest = false,
-            DateCreated = DateTime.UtcNow
+            DateCreated = DateTime.UtcNow,
+            RefId = refId?.ToString() ?? ""
         });
     }
 

@@ -84,8 +84,10 @@ public class UserService
             {
                 Username = dto.Username,
                 Email = dto.Email,
+                CreatedBy = userId,
                 DateCreated = DateTime.UtcNow,
                 Password = _cryptoUtils.HashPassword(dto.password, passwordSalt),
+                PasswordSalt = passwordSalt,
                 IsActive = true
             };
 
@@ -102,8 +104,10 @@ public class UserService
                     Id = user.Id,
                     Username = user.Username,
                     Email = user.Email,
-                    CreatedBy = userId,
+                    CreatedBy = user.CreatedBy,
                     DateCreated = user.DateCreated,
+                    ModifiedBy = user.ModifiedBy,
+                    DateModified = user.DateModified,
                     IsActive = user.IsActive
                 }
             };

@@ -1,4 +1,7 @@
+using API.Attributes;
+using API.Constants;
 using API.DTOs;
+using API.Enums;
 using API.Extensions;
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -19,6 +22,7 @@ namespace API.Controllers
         }
 
         [HttpGet]
+        [AuditTrail(Module = ModuleConstants.Todo, Action = ActionConstants.Read)]
         public async Task<ActionResult<ToDoDto>> GetAll()
         {
             var result = await _toDoService.GetAllAsync();
@@ -26,6 +30,7 @@ namespace API.Controllers
         }
 
         [HttpGet("{id}")]
+        [AuditTrail(Module = ModuleConstants.Todo, Action = ActionConstants.Read)]
         public async Task<ActionResult<ToDoDto>> GetById(int id)
         {
             var result = await _toDoService.GetByIdAsync(id);
@@ -33,6 +38,7 @@ namespace API.Controllers
         }
 
         [HttpPost]
+        [AuditTrail(Module = ModuleConstants.Todo, Action = ActionConstants.Create)]
         public async Task<ActionResult<ToDoDto>> Create([FromBody] ToDoCreateDto dto)
         {
             int userId = User.GetUserId();
@@ -41,6 +47,7 @@ namespace API.Controllers
         }
 
         [HttpPut("{id}")]
+        [AuditTrail(Module = ModuleConstants.Todo, Action = ActionConstants.Update)]
         public async Task<ActionResult<ToDoDto>> Update(int id, [FromBody] ToDoUpdateDto dto)
         {
             int userId = User.GetUserId();
@@ -59,6 +66,7 @@ namespace API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [AuditTrail(Module = ModuleConstants.Todo, Action = ActionConstants.Delete)]
         public async Task<IActionResult> Delete(int id)
         {
             int userId = User.GetUserId();

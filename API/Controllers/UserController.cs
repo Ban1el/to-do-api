@@ -1,3 +1,4 @@
+using API.Attributes;
 using API.Constants;
 using API.DTOs.User;
 using API.Enums;
@@ -21,31 +22,25 @@ namespace API.Controllers
         }
 
         [HttpGet]
+        [AuditTrail(Module = ModuleConstants.User, Action = ActionConstants.Read)]
         public async Task<ActionResult<UserDetailDto>> GetAll()
         {
-            HttpContext.Items[AuditTrailConstants.AuditModule] = ModuleConstants.User;
-            HttpContext.Items[AuditTrailConstants.AuditAction] = ActionConstants.Read;
-
             var result = await _userService.GetAllAsync();
             return Ok(result);
         }
 
         [HttpGet("{id}")]
+        [AuditTrail(Module = ModuleConstants.User, Action = ActionConstants.Read)]
         public async Task<ActionResult<UserDetailDto>> GetById(int id)
         {
-            HttpContext.Items[AuditTrailConstants.AuditModule] = ModuleConstants.User;
-            HttpContext.Items[AuditTrailConstants.AuditAction] = ActionConstants.Read;
-
             var result = await _userService.GetByIdAsync(id);
             return Ok(result);
         }
 
         [HttpPost]
+        [AuditTrail(Module = ModuleConstants.User, Action = ActionConstants.Create)]
         public async Task<ActionResult<UserDetailDto>> Create([FromBody] UserCreateDto dto)
         {
-            HttpContext.Items[AuditTrailConstants.AuditModule] = ModuleConstants.User;
-            HttpContext.Items[AuditTrailConstants.AuditAction] = ActionConstants.Create;
-
             int userId = User.GetUserId();
             var result = await _userService.CreateAsync(userId, dto);
 
@@ -54,10 +49,13 @@ namespace API.Controllers
                 return BadRequest(result.Message);
             }
 
+            HttpContext.Items[AuditTrailConstants.ReferenceId] = result.Data?.Id;
+
             return Ok(result.Data);
         }
 
         [HttpPut("{id}")]
+        [AuditTrail(Module = ModuleConstants.User, Action = ActionConstants.Update)]
         public async Task<ActionResult<UserDetailDto>> Update(int id, [FromBody] UserUpdateDto dto)
         {
             int userId = User.GetUserId();
@@ -76,6 +74,7 @@ namespace API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [AuditTrail(Module = ModuleConstants.User, Action = ActionConstants.Delete)]
         public async Task<IActionResult> Delete(int id)
         {
             int userId = User.GetUserId();
