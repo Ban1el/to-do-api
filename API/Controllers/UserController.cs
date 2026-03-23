@@ -70,6 +70,8 @@ namespace API.Controllers
                 return NoContent();
             }
 
+            HttpContext.Items[AuditTrailConstants.ReferenceId] = result.Data?.Id;
+
             return Ok(result.Data);
         }
 
